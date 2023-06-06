@@ -1,15 +1,15 @@
 ﻿param (
-    [string]$file
+    [string]$infile,
+    [string]$outfile
 )
-
 # Function to display ASCII art banner
 function Show-Banner {
     Write-Host @"
- _____  _    ____
-|_   _|/ \  |  _ \
-  | | / _ \ | |_) |
-  | |/ ___ \|  __/
-  |_/_/   \_\_|
+                          _____  _    ____
+                         |_   _|/ \  |  _ \
+                           | | / _ \ | |_) |
+                           | |/ ___ \|  __/
+                           |_/_/   \_\_|
 
  _____ ___ _     _____ ____ _   _    _    _   _  ____ _____ ____
 |  ___|_ _| |   | ____/ ___| | | |  / \  | \ | |/ ___| ____|  _ \
@@ -17,17 +17,6 @@ function Show-Banner {
 |  _|  | || |___| |__| |___|  _  |/ ___ \| |\  | |_| | |___|  _ <
 |_|   |___|_____|_____\____|_| |_/_/   \_\_| \_|\____|_____|_| \_\
 
-__   _____  _   _ ____
-\ \ / / _ \| | | |  _ \
- \ V / | | | | | | |_) |
-  | || |_| | |_| |  _ <
-  |_| \___/ \___/|_| \_\
-
- _     ___ _____ _____ ____ _   _    _    _   _  ____ _____ ____
-| |   |_ _|  ___| ____/ ___| | | |  / \  | \ | |/ ___| ____|  _ \
-| |    | || |_  |  _|| |   | |_| | / _ \ |  \| | |  _|  _| | |_) |
-| |___ | ||  _| | |__| |___|  _  |/ ___ \| |\  | |_| | |___|  _ <
-|_____|___|_|   |_____\____|_| |_/_/   \_\_| \_|\____|_____|_| \_\
 "@
 }
 
@@ -69,22 +58,20 @@ function Show-Frame {
 Clear-Host
 Show-Banner
 
-# Check if the file path is provided
-if ([string]::IsNullOrEmpty($file)) {
+# Check if the input file path is provided
+if ([string]::IsNullOrEmpty($infile)) {
+    $infile = Read-Host "Enter the path to the input file:"
+}
+
+# Check if the input file exists
+if (-not (Test-Path -Path $infile -PathType Leaf)) {
     Show-Banner
-    Write-Host "Please provide the path to the file using the -file parameter."
+    Write-Host "Input file not found: $infile"
     return
 }
 
-# Check if the file exists
-if (-not (Test-Path -Path $file -PathType Leaf)) {
-    Show-Banner
-    Write-Host "File not found: $file"
-    return
-}
-
-# Read the content of the file
-$originalContent = Get-Content -Path $file -Raw
+# Read the content of the input file
+$originalContent = Get-Content -Path $infile -Raw
 
 # Initialize the changes array
 $changes = @()
@@ -120,16 +107,25 @@ if ($confirmation -ne 'Y') {
     return
 }
 
+# Show updated summary of changes
+Update-Summary
+
 # Perform the replacements in the content
 foreach ($change in $changes) {
     $originalContent = $originalContent -replace [regex]::Escape($change['ReplaceWhat']), $change['ReplaceWith']
 }
 
-# Generate the output file path
-$folderPath = Split-Path -Path $file
-$timestamp = Get-Date -Format "yyyyMMddHHmmss"
-$outputFileName = "output_$timestamp.txt"
-$outputFilePath = Join-Path -Path $folderPath -ChildPath $outputFileName
+# Prompt for the output filename
+if ([string]::IsNullOrWhiteSpace($outfile)) {
+    $outfile = Read-Host "Enter the output filename (leave blank to keep the default):"
+    if ([string]::IsNullOrWhiteSpace($outfile)) {
+        $folderPath = Split-Path -Path $infile
+        $timestamp = Get-Date -Format "yyyyMMddHHmmss"
+        $outfile = "output_$timestamp" + (Get-Item -Path $infile).Extension
+    }
+}
+
+$outputFilePath = Join-Path -Path $folderPath -ChildPath $outfile
 
 # Save the modified content to the output file
 $originalContent | Out-File -FilePath $outputFilePath -Encoding UTF8
